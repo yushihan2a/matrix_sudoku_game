@@ -1,0 +1,810 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Matrix Sudoku - Cloud Save</title>
+
+<style>
+    * {
+        user-select: none;
+        -webkit-tap-highlight-color: transparent;
+        box-sizing: border-box;
+    }
+    
+    body { 
+        margin:0; 
+        background:black; 
+        color:#00ff9f; 
+        font-family: monospace; 
+        text-align:center; 
+        overflow-x: hidden;
+        overflow-y: auto;
+        touch-action: pan-x pan-y;
+    }
+    
+    #matrix { 
+        position:fixed; 
+        top:0; 
+        left:0; 
+        z-index:0; 
+    }
+    
+    #intro, #game { 
+        position:relative; 
+        z-index:1; 
+    }
+    
+    #intro { 
+        position:absolute; 
+        top:50%; 
+        left:50%; 
+        transform:translate(-50%,-50%);
+        width: 90%;
+        max-width: 400px;
+        background: rgba(0,0,0,0.9);
+        border-radius: 24px;
+        padding: 30px 20px;
+        border: 1px solid #00ff9f;
+    }
+    
+    #game { 
+        display:none; 
+        padding-top: 20px;
+        padding-bottom: 140px;
+    }
+    
+    table { 
+        border-collapse:collapse; 
+        margin:auto; 
+        background: rgba(0,0,0,0.9); 
+        box-shadow: 0 0 15px rgba(0,255,159,0.3);
+    }
+    
+    td { 
+        border:1px solid #00ff9f; 
+        width: 45px; 
+        height: 45px; 
+        padding: 0;
+    }
+    
+    input { 
+        width:100%; 
+        height:100%; 
+        text-align:center; 
+        font-size:20px; 
+        background:transparent; 
+        color:#00ff9f; 
+        border:none; 
+        outline: none; 
+        font-family: monospace;
+        font-weight: bold;
+    }
+    
+    .error { 
+        background: rgba(255, 0, 0, 0.4) !important; 
+        color: #fff; 
+    }
+    
+    .fixed { 
+        color:#00ffaa; 
+        font-weight:bold; 
+        background: rgba(0,255,159,0.05);
+    }
+
+    button { 
+        margin:10px; 
+        padding:12px 20px; 
+        background:black; 
+        color:#00ff9f; 
+        border:1px solid #00ff9f; 
+        cursor:pointer; 
+        text-transform: uppercase; 
+        font-weight: bold;
+        transition: all 0.2s;
+        border-radius: 40px;
+    }
+    
+    button:active { 
+        background: #00ff9f; 
+        color: black; 
+        transform: scale(0.96);
+    }
+    
+    .sound-btn {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        z-index: 50;
+        background: rgba(0,0,0,0.7);
+        border-radius: 50%;
+        width: 45px;
+        height: 45px;
+        padding: 0;
+        font-size: 20px;
+        border: 1px solid #00ff9f;
+    }
+
+    #leaderboardPanel, #confirmDialog, #searchDialog { 
+        display:none; 
+        position:fixed; 
+        top:50%; 
+        left:50%; 
+        transform:translate(-50%,-50%); 
+        background:rgba(0, 10, 0, 0.98); 
+        border:2px solid #00ff9f; 
+        padding:30px; 
+        z-index:100; 
+        box-shadow: 0 0 30px #00ff9f; 
+        min-width: 280px;
+        max-width: 95%;
+        width: 90%;
+        backdrop-filter: blur(5px);
+        border-radius: 24px;
+    }
+
+    #leaderboardPanel {
+        width: 95%;
+        max-width: 1000px;
+        padding: 20px;
+    }
+
+    #timerDisplay { 
+        font-size: 24px; 
+        margin-bottom: 15px; 
+        text-shadow: 0 0 10px #00ff9f; 
+        letter-spacing: 2px; 
+        background: rgba(0,0,0,0.5);
+        display: inline-block;
+        padding: 8px 24px;
+        border-radius: 40px;
+    }
+    
+    #lbTable { 
+        width: 100%; 
+        color: #00ff9f; 
+        border-collapse: collapse; 
+        margin-top: 15px; 
+        font-size: 14px;
+    }
+    
+    #lbTable th { 
+        border-bottom: 2px solid #00ff9f; 
+        padding: 12px; 
+        color: #fff; 
+        position: sticky;
+        top: 0;
+        background: rgba(0, 10, 0, 0.95);
+    }
+    
+    #lbTable td { 
+        padding: 10px; 
+        border-bottom: 1px solid rgba(0,255,159,0.2); 
+        cursor: pointer;
+    }
+    
+    .leaderboard-container {
+        max-height: 55vh;
+        overflow-y: auto;
+        margin-top: 10px;
+    }
+    
+    .lb-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 15px;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+    
+    .refresh-btn, .close-leaderboard-btn, .search-btn, .page-btn {
+        padding: 6px 14px;
+        font-size: 12px;
+        margin: 0;
+    }
+    
+    .page-btn {
+        background: rgba(0, 255, 159, 0.1);
+        border: 1px solid #00ff9f;
+        padding: 5px 12px;
+        margin: 0 3px;
+        border-radius: 20px;
+    }
+    
+    .page-btn.active {
+        background: #00ff9f;
+        color: black;
+    }
+    
+    .pagination {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 8px;
+        margin-top: 15px;
+        flex-wrap: wrap;
+    }
+    
+    .rank-badge {
+        display: inline-block;
+        background: rgba(0,255,159,0.2);
+        padding: 5px 12px;
+        border-radius: 20px;
+        margin-top: 10px;
+        font-size: 14px;
+    }
+    
+    .virtual-keyboard {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        background: rgba(0, 20, 0, 0.95);
+        backdrop-filter: blur(10px);
+        border-top: 2px solid #00ff9f;
+        padding: 12px;
+        display: none;
+        grid-template-columns: repeat(5, 1fr);
+        gap: 8px;
+        z-index: 200;
+    }
+    
+    .key-btn {
+        background: rgba(0, 255, 159, 0.15);
+        border: 1px solid #00ff9f;
+        color: #00ff9f;
+        font-size: 22px;
+        font-weight: bold;
+        padding: 12px 0;
+        text-align: center;
+        cursor: pointer;
+        border-radius: 12px;
+    }
+    
+    .key-btn:active {
+        background: #00ff9f;
+        color: black;
+        transform: scale(0.95);
+    }
+    
+    .key-delete {
+        background: rgba(255, 50, 50, 0.3);
+        border-color: #ff5555;
+        color: #ff5555;
+    }
+    
+    .key-close {
+        background: rgba(100, 100, 100, 0.3);
+        border-color: #cccccc;
+        color: #cccccc;
+    }
+    
+    /* IN-GAME TOAST NOTIFICATION  */
+    .game-toast {
+        position: fixed;
+        bottom: 30px;
+        left: 50%;
+        transform: translateX(-50%) translateY(100px);
+        background: rgba(0, 40, 0, 0.95);
+        backdrop-filter: blur(12px);
+        border: 2px solid #ffd700;
+        border-radius: 60px;
+        padding: 14px 28px;
+        z-index: 300;
+        text-align: center;
+        transition: transform 0.3s ease;
+        box-shadow: 0 0 30px rgba(255, 215, 0, 0.4);
+        min-width: 260px;
+        pointer-events: none;
+    }
+    
+    .game-toast.show {
+        transform: translateX(-50%) translateY(0);
+    }
+    
+    .game-toast h3 {
+        margin: 0 0 5px 0;
+        color: #ffd700;
+        font-size: 18px;
+    }
+    
+    .game-toast p {
+        margin: 0;
+        font-size: 14px;
+    }
+    
+    .game-toast button {
+        margin-top: 10px;
+        padding: 6px 18px;
+        font-size: 12px;
+        pointer-events: auto;
+        background: #ffd700;
+        color: black;
+        border: none;
+    }
+    
+    .toast-record {
+        border-color: #ffd700;
+    }
+    
+    .toast-saved {
+        border-color: #00ff9f;
+    }
+    
+    .game-instructions {
+        font-size: 12px;
+        color: #88ffaa;
+        margin-top: 15px;
+        padding: 10px;
+        background: rgba(0,30,0,0.6);
+        border-radius: 20px;
+        max-width: 400px;
+        margin-left: auto;
+        margin-right: auto;
+    }
+    
+    @media (max-width: 768px) {
+        td { width: 38px; height: 38px; }
+        input { font-size: 18px; }
+        .key-btn { font-size: 18px; padding: 10px 0; }
+        #timerDisplay { font-size: 20px; }
+    }
+    
+    @media (max-width: 480px) {
+        td { width: 32px; height: 32px; }
+        input { font-size: 14px; }
+    }
+    
+    .confirm-buttons {
+        display: flex;
+        gap: 20px;
+        justify-content: center;
+        margin-top: 20px;
+    }
+    
+    .current-player-highlight {
+        background: rgba(0, 255, 159, 0.3) !important;
+    }
+    
+    .rank-medal {
+        display: inline-block;
+        width: 28px;
+    }
+    .medal-gold { color: #ffd700; }
+    .medal-silver { color: #c0c0c0; }
+    .medal-bronze { color: #cd7f32; }
+</style>
+</head>
+<body>
+
+<canvas id="matrix"></canvas>
+
+<button class="sound-btn" id="soundToggle" onclick="toggleSound()">🔊</button>
+
+<div id="intro">
+    <h1 style="letter-spacing: 3px;">⚡ MATRIX SUDOKU ⚡</h1>
+    <input id="playerName" placeholder="AGENT NAME..." style="border:1px solid #00ff9f; padding:14px; background:black; color:#00ff9f; width: 85%; text-align: center; border-radius: 40px;">
+    <br><br>
+    <button onclick="startGame()">▶ INITIALIZE MISSION</button>
+    <div class="game-instructions">
+        🎯 Tap empty cells → use number pad<br>
+        📌 Each row, column & 3x3 box = 1-9<br>
+        ☁️ Complete mission → auto-save to cloud<br>
+        🏆 Compete on global leaderboard!
+    </div>
+</div>
+
+<div id="game">
+    <h2 id="playerDisplay"></h2>
+    <div id="timerDisplay">⏱️ 0s</div>
+    <div style="overflow-x: auto; padding: 10px;">
+        <table id="board" style="margin: auto;">    </table>
+    </div>
+    <br>
+    <button onclick="confirmNewGame()">🔄 NEW MISSION</button>
+    <button onclick="toggleLeaderboard()">🏆 GLOBAL RANKING</button>
+    <button onclick="disconnectGame()">🚪 EXIT</button>
+    <div class="game-instructions">
+        💡 Complete the grid → auto save to cloud!
+    </div>
+</div>
+
+<!-- IN-GAME TOAST  -->
+<div id="gameToast" class="game-toast">
+    <h3 id="toastTitle">✨ MISSION COMPLETE!</h3>
+    <p id="toastMessage">Time: 0s</p>
+    <p id="toastRecord" style="color: #ffd700;"></p>
+    <button onclick="closeToastAndContinue()">▶ CONTINUE</button>
+</div>
+
+<div id="leaderboardPanel">
+    <div class="lb-header">
+        <h2 style="color: #fff;">🌐 GLOBAL AGENTS</h2>
+        <div class="lb-buttons">
+            <button class="search-btn" onclick="showSearchDialog()">🔍 SEARCH</button>
+            <button class="refresh-btn" onclick="refreshLeaderboard()">⟳ REFRESH</button>
+            <button class="close-leaderboard-btn" onclick="closeLeaderboard()">✖ CLOSE</button>
+        </div>
+    </div>
+    <div id="currentRankDisplay" class="rank-badge"></div>
+    <div class="leaderboard-container">
+        <table id="lbTable">
+            <thead><tr><th>#</th><th>AGENT</th><th>BEST (s)</th><th>MISSIONS</th><th>AVG</th></tr></thead>
+            <tbody id="lbBody"><tr><td colspan="5" class="loading">LOADING...</td></tr></tbody>
+        </table>
+    </div>
+    <div class="pagination" id="pagination">
+        <button class="page-btn" onclick="previousPage()" id="prevBtn">◀</button>
+        <span id="pageNumbers"></span>
+        <button class="page-btn" onclick="nextPage()" id="nextBtn">▶</button>
+    </div>
+    <div id="pageInfo" class="page-info"></div>
+    <br>
+    <button class="close-leaderboard-btn" onclick="closeLeaderboard()">CLOSE</button>
+</div>
+
+<div id="searchDialog">
+    <h3>🔍 SEARCH AGENT</h3>
+    <input type="text" id="searchName" class="search-input" placeholder="AGENT NAME..." style="width:90%; padding:12px; background:black; border:1px solid #0f0;">
+    <div class="confirm-buttons">
+        <button onclick="searchAgent()">SEARCH</button>
+        <button onclick="closeSearchDialog()">CANCEL</button>
+    </div>
+    <div id="searchResult" class="search-result"></div>
+</div>
+
+<div id="confirmDialog">
+    <h3>⚠️ CONFIRM</h3>
+    <p>Start new mission? Current progress lost.</p>
+    <div class="confirm-buttons">
+        <button onclick="executeNewGame()">YES</button>
+        <button onclick="closeConfirmDialog()">CANCEL</button>
+    </div>
+</div>
+
+<div id="virtualKeyboard" class="virtual-keyboard">
+    <div class="key-btn" data-value="1">1</div><div class="key-btn" data-value="2">2</div><div class="key-btn" data-value="3">3</div>
+    <div class="key-btn" data-value="4">4</div><div class="key-btn" data-value="5">5</div><div class="key-btn" data-value="6">6</div>
+    <div class="key-btn" data-value="7">7</div><div class="key-btn" data-value="8">8</div><div class="key-btn" data-value="9">9</div>
+    <div class="key-btn key-delete" data-value="delete">⌫ DEL</div>
+    <div class="key-btn key-close" data-value="close">✖ CLOSE</div>
+</div>
+
+<script>
+
+// Game State
+let currentPlayer = "", solution = [], puzzle = [], startTime = 0, timerInterval = null;
+let currentActiveInput = null;
+let leaderboardData = [];
+let currentPage = 1;
+const ITEMS_PER_PAGE = 10;
+let pendingNewGameAfterToast = false;
+
+// Matrix Effect
+const canvas = document.getElementById("matrix");
+const ctx = canvas.getContext("2d");
+function resizeCanvas() { canvas.height = window.innerHeight; canvas.width = window.innerWidth; }
+resizeCanvas();
+window.addEventListener('resize', resizeCanvas);
+let drops = Array(Math.floor(canvas.width/14)).fill(1);
+function drawMatrix(){
+    ctx.fillStyle = "rgba(0,0,0,0.05)";
+    ctx.fillRect(0,0,canvas.width,canvas.height);
+    ctx.fillStyle = "#00ff9f";
+    ctx.font = "14px monospace";
+    drops.forEach((y,i)=>{
+        let text = "01ABCDEFGHJKLMNPQRSTUVWXYZ"[Math.random()*36|0];
+        ctx.fillText(text, i*14, y*14);
+        if(y*14 > canvas.height && Math.random() > 0.975) drops[i] = 0;
+        drops[i]++;
+    });
+    requestAnimationFrame(drawMatrix);
+}
+drawMatrix();
+
+// ========== TOAST SYSTEM (in-game) ==========
+function showGameToast(title, message, recordMsg = "", isRecord = false) {
+    const toast = document.getElementById("gameToast");
+    document.getElementById("toastTitle").innerHTML = title;
+    document.getElementById("toastMessage").innerHTML = message;
+    document.getElementById("toastRecord").innerHTML = recordMsg;
+    
+    if (isRecord) {
+        toast.style.borderColor = "#ffd700";
+    } else {
+        toast.style.borderColor = "#00ff9f";
+    }
+    
+    toast.classList.add("show");
+    
+    
+    if (!isRecord) {
+        setTimeout(() => {
+            if (toast.classList.contains("show")) {
+                closeToastAndContinue();
+            }
+        }, 3500);
+    }
+}
+
+function closeToastAndContinue() {
+    document.getElementById("gameToast").classList.remove("show");
+    if (pendingNewGameAfterToast) {
+        pendingNewGameAfterToast = false;
+        newGame();
+    }
+}
+
+// ========== LEADERBOARD ==========
+function displayLeaderboardPage() {
+    if (!leaderboardData || leaderboardData.length === 0) {
+        document.getElementById("lbBody").innerHTML = "<tr><td colspan='5'>No data</td></tr>";
+        return;
+    }
+    const totalPages = Math.ceil(leaderboardData.length / ITEMS_PER_PAGE);
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+    const pageData = leaderboardData.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+    
+    let html = "";
+    pageData.forEach((u, idx) => {
+        const rank = startIndex + idx + 1;
+        let medal = rank === 1 ? "🥇" : rank === 2 ? "🥈" : rank === 3 ? "🥉" : `#${rank}`;
+        const isCurrent = u.name === currentPlayer;
+        html += `<tr style="${isCurrent ? 'background:rgba(0,255,159,0.2)' : ''}" onclick="alert('${u.name}\\nBest: ${u.best_time}s\\nMissions: ${u.games_played}')">
+                    <td>${medal}</td><td>${escapeHtml(u.name)}</td>
+                    <td>${u.best_time}s</td><td>${u.games_played}</td>
+                    <td>${Math.floor(u.total_time / u.games_played)}s</td>
+                </tr>`;
+    });
+    document.getElementById("lbBody").innerHTML = html;
+    
+    const prevBtn = document.getElementById("prevBtn");
+    const nextBtn = document.getElementById("nextBtn");
+    if(prevBtn) prevBtn.disabled = currentPage === 1;
+    if(nextBtn) nextBtn.disabled = currentPage === totalPages;
+    document.getElementById("pageInfo").innerHTML = `Page ${currentPage}/${totalPages}`;
+}
+
+function previousPage() { if(currentPage > 1) { currentPage--; displayLeaderboardPage(); } }
+function nextPage() { 
+    const total = Math.ceil(leaderboardData.length / ITEMS_PER_PAGE);
+    if(currentPage < total) { currentPage++; displayLeaderboardPage(); }
+}
+function goToPage(p) { currentPage = p; displayLeaderboardPage(); }
+
+async function refreshLeaderboard() {
+    try {
+        const response = await fetch('/api/submit-score?action=getScores');
+        const data = await response.json();
+        if (data.success && data.scores) {
+            leaderboardData = data.scores;
+        } else {
+            leaderboardData = [];
+        }
+        currentPage = 1;
+        displayLeaderboardPage();
+        const rank = leaderboardData.findIndex(u => u.name === currentPlayer) + 1;
+        if(rank > 0) {
+            document.getElementById("currentRankDisplay").innerHTML = `🎯 YOUR RANK: #${rank} / ${leaderboardData.length}`;
+        } else if(currentPlayer) {
+            document.getElementById("currentRankDisplay").innerHTML = `🎯 Complete a mission to rank!`;
+        }
+    } catch(e) { 
+        console.error(e);
+        document.getElementById("lbBody").innerHTML = "<td colspan='5'>Failed to load leaderboard</td>";
+    }
+}
+async function searchAgent() {
+    if(!sb) { alert("DB not connected"); return; }
+    const name = document.getElementById("searchName").value.trim();
+    if(!name) return;
+    let { data } = await sb.from("scores").select("*").ilike("name", `%${name}%`).limit(20);
+    let html = "<h4>Results:</h4>";
+    if(data && data.length) {
+        data.forEach(u => {
+            html += `<div>${escapeHtml(u.name)} — Best: ${u.best_time}s (${u.games_played} missions)</div>`;
+        });
+    } else html += "<div>Not found</div>";
+    document.getElementById("searchResult").innerHTML = html;
+}
+
+function closeLeaderboard() { document.getElementById("leaderboardPanel").style.display = "none"; hideKeyboard(); }
+function showSearchDialog() { document.getElementById("searchDialog").style.display = "block"; }
+function closeSearchDialog() { document.getElementById("searchDialog").style.display = "none"; }
+function toggleLeaderboard() {
+    let p = document.getElementById("leaderboardPanel");
+    if(p.style.display === "block") closeLeaderboard();
+    else { p.style.display = "block"; refreshLeaderboard(); }
+}
+
+// ========== GAME LOGIC ==========
+function startGame(){
+    let name = document.getElementById("playerName").value.trim();
+    if(!name) return alert("Enter agent name!");
+    currentPlayer = name;
+    document.getElementById("playerDisplay").innerText = "👤 " + name;
+    document.getElementById("intro").style.display = "none";
+    document.getElementById("game").style.display = "block";
+    newGame();
+}
+
+function disconnectGame() {
+    if(confirm("Exit mission?")) {
+        if(timerInterval) clearInterval(timerInterval);
+        document.getElementById("game").style.display = "none";
+        document.getElementById("intro").style.display = "block";
+        document.getElementById("playerName").value = "";
+        currentPlayer = "";
+        hideKeyboard();
+    }
+}
+
+function newGame(){
+    solution = Array(9).fill().map(() => Array(9).fill(0));
+    solve(solution);
+    puzzle = solution.map(r => r.map(v => Math.random() > 0.6 ? 0 : v));
+    drawBoard();
+    if(timerInterval) clearInterval(timerInterval);
+    startTime = Date.now();
+    timerInterval = setInterval(() => {
+        document.getElementById("timerDisplay").innerText = "⏱️ " + Math.floor((Date.now()-startTime)/1000) + "s";
+    }, 1000);
+}
+
+function drawBoard(){
+    let board = document.getElementById("board");
+    board.innerHTML = "";
+    for(let i=0;i<9;i++){
+        let row = document.createElement("tr");
+        for(let j=0;j<9;j++){
+            let cell = document.createElement("td");
+            let input = document.createElement("input");
+            input.type = "text";
+            input.inputMode = "numeric";
+            input.setAttribute("data-row", i);
+            input.setAttribute("data-col", j);
+            if(puzzle[i][j]){
+                input.value = puzzle[i][j];
+                input.disabled = true;
+                input.classList.add("fixed");
+            } else {
+                input.onfocus = () => { currentActiveInput = input; showKeyboard(); };
+                input.oninput = function(e) {
+                    let v = e.target.value.replace(/[^1-9]/g, "");
+                    if(v.length > 1) v = v.slice(-1);
+                    e.target.value = v;
+                    let r = parseInt(this.getAttribute("data-row"));
+                    let c = parseInt(this.getAttribute("data-col"));
+                    if(v && parseInt(v) !== solution[r][c]) this.classList.add("error");
+                    else this.classList.remove("error");
+                    checkWinAndSave();
+                };
+            }
+            cell.appendChild(input);
+            row.appendChild(cell);
+        }
+        board.appendChild(row);
+    }
+}
+
+async function checkWinAndSave() {
+    let inputs = document.querySelectorAll("#board input");
+    for(let inp of inputs) {
+        if(inp.disabled) continue;
+        let r = parseInt(inp.getAttribute("data-row"));
+        let c = parseInt(inp.getAttribute("data-col"));
+        let val = inp.value;
+        if(!val || parseInt(val) !== solution[r][c]) return false;
+    }
+    // WIN!
+    if(timerInterval) clearInterval(timerInterval);
+    let finalTime = Math.floor((Date.now() - startTime) / 1000);
+    
+    let isNewRecord = false;
+    let recordMsg = "";
+    
+    // Call Vercel API
+    try {
+        const response = await fetch('/api/submit-score', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: currentPlayer, score: finalTime })
+        });
+        const result = await response.json();
+        
+        if (result.success) {
+            isNewRecord = result.isNewRecord;
+            if (isNewRecord) {
+                recordMsg = `🏆 NEW RECORD! ${result.oldRecord ? result.oldRecord + 's → ' : ''}${finalTime}s`;
+            } else {
+                recordMsg = `Best: ${result.oldRecord}s`;
+            }
+        } else {
+            throw new Error(result.error);
+        }
+    } catch(e) {
+        console.error("Save error:", e);
+        recordMsg = "⚠️ Save failed, but mission complete!";
+    }
+    
+    // Show in-game toast 
+    let title = isNewRecord ? "🏆 NEW RECORD! 🏆" : "✨ MISSION COMPLETE! ✨";
+    let message = `Time: ${finalTime} seconds`;
+    showGameToast(title, message, recordMsg, isNewRecord);
+    
+    pendingNewGameAfterToast = true;
+    hideKeyboard();
+    return true;
+}
+function confirmNewGame() {
+    if(timerInterval) {
+        document.getElementById("confirmDialog").style.display = "block";
+        hideKeyboard();
+    } else executeNewGame();
+}
+function closeConfirmDialog() { document.getElementById("confirmDialog").style.display = "none"; }
+function executeNewGame() { 
+    document.getElementById("confirmDialog").style.display = "none"; 
+    if(document.getElementById("gameToast").classList.contains("show")) {
+        closeToastAndContinue();
+    }
+    newGame(); 
+}
+
+// ========== UTILITIES ==========
+function showKeyboard() { document.getElementById("virtualKeyboard").style.display = "grid"; }
+function hideKeyboard() { document.getElementById("virtualKeyboard").style.display = "none"; if(currentActiveInput) { currentActiveInput.blur(); currentActiveInput = null; } }
+
+function setupVirtualKeyboard() {
+    document.querySelectorAll(".key-btn").forEach(key => {
+        key.addEventListener("click", (e) => {
+            e.preventDefault();
+            if(!currentActiveInput) return;
+            const val = key.getAttribute("data-value");
+            if(val === "delete") { currentActiveInput.value = ""; currentActiveInput.classList.remove("error"); }
+            else if(val === "close") { hideKeyboard(); return; }
+            else {
+                currentActiveInput.value = val;
+                let r = parseInt(currentActiveInput.getAttribute("data-row"));
+                let c = parseInt(currentActiveInput.getAttribute("data-col"));
+                if(parseInt(val) === solution[r][c]) currentActiveInput.classList.remove("error");
+                else currentActiveInput.classList.add("error");
+            }
+            const ev = new Event('input', { bubbles: true });
+            currentActiveInput.dispatchEvent(ev);
+            currentActiveInput.focus();
+        });
+    });
+    document.addEventListener("click", (e) => {
+        if(!e.target.closest(".virtual-keyboard") && !e.target.closest("input")) hideKeyboard();
+    });
+}
+
+function solve(b){
+    for(let r=0;r<9;r++)for(let c=0;c<9;c++)if(b[r][c]===0){
+        let nums=[1,2,3,4,5,6,7,8,9].sort(()=>Math.random()-0.5);
+        for(let n of nums)if(isValid(b,r,c,n)){
+            b[r][c]=n; if(solve(b))return true; b[r][c]=0;
+        }
+        return false;
+    }
+    return true;
+}
+function isValid(b,r,c,n){
+    for(let i=0;i<9;i++) if(b[r][i]===n || b[i][c]===n) return false;
+    let br=Math.floor(r/3)*3, bc=Math.floor(c/3)*3;
+    for(let i=0;i<3;i++)for(let j=0;j<3;j++) if(b[br+i][bc+j]===n) return false;
+    return true;
+}
+function toggleSound() {
+    let btn = document.getElementById("soundToggle");
+    btn.innerHTML = btn.innerHTML === "🔊" ? "🔇" : "🔊";
+}
+function escapeHtml(s) { return s.replace(/[&<>]/g, function(m){return m==='&'?'&amp;':m==='<'?'&lt;':'&gt;';}); }
+
+setupVirtualKeyboard();
+
+</script>
+</body>
+</html>
