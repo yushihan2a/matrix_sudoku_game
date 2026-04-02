@@ -1,4 +1,28 @@
 export default async function handler(req, res) {
+  // Handle GET request (get leaderboard)
+  if (req.method === 'GET') {
+    const SUPABASE_URL = process.env.SUPABASE_URL;
+    const SUPABASE_KEY = process.env.SUPABASE_KEY;
+    
+    try {
+      const response = await fetch(`${SUPABASE_URL}/rest/v1/scores?select=*&order=best_time.asc&limit=100`, {
+        headers: {
+          apikey: SUPABASE_KEY,
+          Authorization: `Bearer ${SUPABASE_KEY}`,
+        },
+      });
+      const scores = await response.json();
+      
+      return res.status(200).json({
+        success: true,
+        scores: scores
+      });
+    } catch (error) {
+      return res.status(500).json({ error: 'Failed to fetch scores' });
+    }
+  }
+  
+  // Handle POST request (save score)
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
@@ -9,12 +33,10 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'Invalid data' });
   }
 
-  // Supabase credentials (hidden on server)
   const SUPABASE_URL = process.env.SUPABASE_URL;
   const SUPABASE_KEY = process.env.SUPABASE_KEY;
 
   try {
-    // Check if player exists
     const checkRes = await fetch(
       `${SUPABASE_URL}/rest/v1/scores?name=eq.${encodeURIComponent(name)}&select=*`,
       {
